@@ -43,16 +43,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
 
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[Webhook] Error:", error);
     return NextResponse.json(
-      { error: error.message },
+      { error: message },
       { status: 500 }
     );
   }
 }
 
-// Configuración de Vercel para esta función
-export const config = {
-  maxDuration: 60, // 60 segundos máximo (suficiente para OpenRouter)
-};
+export const maxDuration = 60;
