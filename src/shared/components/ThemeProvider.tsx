@@ -1,0 +1,58 @@
+"use client";
+
+import { createContext, useContext, useEffect, useState } from "react";
+import {
+  Theme,
+  applyTheme,
+  getStoredTheme,
+  setStoredTheme,
+} from "@/shared/theme";
+
+interface ThemeContextValue {
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  mounted: boolean;
+}
+
+const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setThemeState] = useState<Theme>("dark");
+  const [mounted, setMounted] = useState(false);
+
+  // Hidratar desde localStorage al montar
+  useEffect(() => {
+    const stored = getStoredTheme();
+    setThemeState(stored);
+    applyTheme(stored);
+    setMounted(true);
+  }, []);
+
+  // Escuchar cambios en la preferencia del SO si theme === "system"
+  useEffect(() => {
+    if (theme !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => applyTheme("system");
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [theme]);
+
+  const setTheme = (next: Theme) => {
+    setThemeState(next);
+    setStoredTheme(next);
+    applyTheme(next);
+  };
+
+  // Evitar hydration mismatch
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme, mounted }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export function useTheme() {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error("useTheme must be used within ThemeProvider");
+  return ctx;
+}

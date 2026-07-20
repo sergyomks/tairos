@@ -1,0 +1,39 @@
+{
+  "name": "tairos-os",
+  "version": "1.0.0",
+  "description": "Tairos OS - Operating System for Collaborative Software Factory",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:runner": "node runner/index.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:runner\"",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "validate": "node runner/validate-config.js",
+    "runner:start": "cd runner && pm2 start ecosystem.config.js",
+    "runner:stop": "cd runner && pm2 stop tairos-runner",
+    "runner:restart": "cd runner && pm2 restart tairos-runner",
+    "runner:logs": "cd runner && pm2 logs tairos-runner",
+    "check-deploy": "node scripts/check-deploy-ready.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.7",
+    "clsx": "^2.1.1",
+    "dotenv": "^16.4.5",
+    "lucide-react": "^0.446.0",
+    "next": "^14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^8.2.2",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.5.2"
+  }
+}

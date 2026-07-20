@@ -1,0 +1,13 @@
+{
+  "name": "tairos-runner",
+  "version": "1.0.0",
+  "description": "Agent Runner Daemon for Tairos OS local bunker operations",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.5",
+    "dotenv": "^16.4.5"
+  }
+}

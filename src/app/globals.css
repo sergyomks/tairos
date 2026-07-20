@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");
+
+/* ============================================
+   THEME TOKENS — Modo Claro y Oscuro
+   ============================================ */
+:root {
+  /* Light mode (default) */
+  --tairos-bg: #fafafa;
+  --tairos-surface: #ffffff;
+  --tairos-card: rgba(255, 255, 255, 0.7);
+  --tairos-border: rgba(0, 0, 0, 0.08);
+  --tairos-border-hover: rgba(139, 92, 246, 0.3);
+  --tairos-text: #0f172a;
+  --tairos-muted: #64748b;
+  --tairos-accent: #7c3aed;
+  --tairos-accent-rgb: 124 58 237;
+  --tairos-cyan: #0891b2;
+  --tairos-cyan-rgb: 8 145 178;
+  --tairos-green: #059669;
+  --tairos-green-rgb: 5 150 105;
+  --tairos-red: #dc2626;
+  --tairos-red-rgb: 220 38 38;
+  --tairos-amber: #d97706;
+  --tairos-amber-rgb: 217 119 6;
+  --tairos-gradient-mesh:
+    radial-gradient(at 27% 37%, hsla(270, 80%, 90%, 0.5) 0px, transparent 50%),
+    radial-gradient(at 97% 21%, hsla(200, 80%, 90%, 0.4) 0px, transparent 50%),
+    radial-gradient(at 52% 99%, hsla(280, 70%, 92%, 0.4) 0px, transparent 50%),
+    radial-gradient(at 10% 29%, hsla(256, 60%, 92%, 0.5) 0px, transparent 50%);
+  --tairos-shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.dark {
+  /* Dark mode */
+  --tairos-bg: #030014;
+  --tairos-surface: #0a0a1a;
+  --tairos-card: rgba(15, 15, 35, 0.6);
+  --tairos-border: rgba(139, 92, 246, 0.15);
+  --tairos-border-hover: rgba(139, 92, 246, 0.4);
+  --tairos-text: #e2e8f0;
+  --tairos-muted: #64748b;
+  --tairos-accent: #8b5cf6;
+  --tairos-accent-rgb: 139 92 246;
+  --tairos-cyan: #06b6d4;
+  --tairos-cyan-rgb: 6 182 212;
+  --tairos-green: #10b981;
+  --tairos-green-rgb: 16 185 129;
+  --tairos-red: #ef4444;
+  --tairos-red-rgb: 239 68 68;
+  --tairos-amber: #f59e0b;
+  --tairos-amber-rgb: 245 158 11;
+  --tairos-gradient-mesh:
+    radial-gradient(at 27% 37%, hsla(270, 80%, 15%, 0.4) 0px, transparent 50%),
+    radial-gradient(at 97% 21%, hsla(200, 80%, 15%, 0.3) 0px, transparent 50%),
+    radial-gradient(at 52% 99%, hsla(280, 70%, 10%, 0.3) 0px, transparent 50%),
+    radial-gradient(at 10% 29%, hsla(256, 60%, 12%, 0.4) 0px, transparent 50%);
+  --tairos-shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(139, 92, 246, 0.3) transparent;
+  }
+  body {
+    @apply bg-tairos-bg text-tairos-text font-sans antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-tairos-card backdrop-blur-xl border border-tairos-border rounded-2xl shadow-glass;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease,
+      background-color 0.3s ease;
+  }
+  .glass-card:hover {
+    @apply border-tairos-border-hover shadow-neon;
+  }
+  .glass-button {
+    @apply px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200
+      bg-tairos-accent/10 border border-tairos-accent/30 text-tairos-accent
+      hover:bg-tairos-accent/20 hover:border-tairos-accent/50 hover:shadow-neon
+      active:scale-95;
+  }
+  .glass-button-primary {
+    @apply px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200
+      bg-tairos-accent text-white border border-tairos-accent
+      hover:bg-tairos-accent/90 hover:shadow-neon
+      active:scale-95;
+  }
+  .glass-input {
+    @apply w-full px-4 py-3 rounded-xl text-sm font-medium
+      bg-black/5 dark:bg-white/5 border border-tairos-border text-tairos-text placeholder-tairos-muted
+      focus:outline-none focus:border-tairos-accent/50 focus:ring-1 focus:ring-tairos-accent/30
+      transition-all duration-200;
+  }
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium
+      text-tairos-muted transition-all duration-200
+      hover:text-tairos-text hover:bg-black/5 dark:hover:bg-white/5;
+  }
+  .sidebar-link-active {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium
+      text-tairos-accent bg-tairos-accent/10 border border-tairos-accent/30;
+  }
+  .status-badge {
+    @apply px-2.5 py-1 rounded-full text-xs font-semibold;
+  }
+  .neon-divider {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-tairos-accent/30 to-transparent;
+  }
+}

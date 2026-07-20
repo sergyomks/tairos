@@ -1,0 +1,3 @@
+🧪 Probando qwen2.5-coder:7b con prompt de arquitectura...
+
+[LLM] Usando Ollama local: qwen2.5-coder:7b
