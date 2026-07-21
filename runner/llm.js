@@ -18,9 +18,9 @@ const MODELS = {
   },
   // Ollama local
   ollama: {
-    architect: "qwen2.5-coder:7b",  // Modelo equilibrado para arquitectura
-    worker: "qwen2.5-coder:7b",     // Mismo para código
-    healer: "qwen2.5-coder:7b",
+    architect: "qwen3.5:9b",
+    worker: "qwen3.5:9b",
+    healer: "qwen3.5:9b",
   },
 };
 
