@@ -96,6 +96,7 @@ export default function ChatPage() {
       if (prpData && prpData.length > 0) {
         const prp = prpData[0];
         setActivePRP(prp);
+        setShowPRP(true);
 
         // Fetch votes for this PRP
         const { data: votesData } = await supabase
@@ -106,6 +107,11 @@ export default function ChatPage() {
         if (votesData) {
           setVotes(votesData);
         }
+      } else {
+        // No hay PRP pendiente: ocultar panel
+        setActivePRP(null);
+        setVotes([]);
+        setShowPRP(false);
       }
     };
     fetchActivePRP();
@@ -149,7 +155,26 @@ export default function ChatPage() {
               if (votesData) {
                 setVotes(votesData);
               }
+            } else if (prp.status === "approved" || prp.status === "rejected") {
+              // Si el PRP activo cambió de estado, limpiar el panel
+              setActivePRP((prev: any) => {
+                if (prev && prev.id === prp.id) {
+                  setVotes([]);
+                  setShowPRP(false);
+                  return null;
+                }
+                return prev;
+              });
             }
+          } else if (payload.eventType === "DELETE") {
+            setActivePRP((prev: any) => {
+              if (prev && prev.id === payload.old.id) {
+                setVotes([]);
+                setShowPRP(false);
+                return null;
+              }
+              return prev;
+            });
           }
         }
       )
