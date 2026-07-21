@@ -6,6 +6,8 @@
  * inteligente usando el Agente Architect y opcionalmente crea una PRP.
  */
 
+const fs = require("fs");
+const path = require("path");
 const { callLLM } = require("./llm");
 const { 
   getCachedResponse, 
@@ -24,13 +26,39 @@ const COMMAND_PATTERNS = [
 // Evitar que el bot responda a sus propios mensajes
 const AGENT_SENDER_NAMES = ["@tairos-architect", "Tairos Agent", "System"];
 
+const PROCESSED_MESSAGES_FILE = path.resolve(__dirname, ".processed-messages.json");
+
+function loadProcessedMessageIds() {
+  try {
+    if (fs.existsSync(PROCESSED_MESSAGES_FILE)) {
+      const data = JSON.parse(fs.readFileSync(PROCESSED_MESSAGES_FILE, "utf-8"));
+      return new Set(data);
+    }
+  } catch (err) {
+    console.error("[Chat Orchestrator] Error cargando mensajes procesados:", err.message);
+  }
+  return new Set();
+}
+
+function saveProcessedMessageIds() {
+  try {
+    fs.writeFileSync(
+      PROCESSED_MESSAGES_FILE,
+      JSON.stringify(Array.from(processedMessageIds)),
+      "utf-8"
+    );
+  } catch (err) {
+    console.error("[Chat Orchestrator] Error guardando mensajes procesados:", err.message);
+  }
+}
+
 /**
  * Inicializa el orquestador de chat.
  * Escucha INSERT en chat_messages y responde cuando detecta comandos.
  * 
  * @param {import("@supabase/supabase-js").SupabaseClient} supabase
  */
-const processedMessageIds = new Set();
+const processedMessageIds = loadProcessedMessageIds();
 
 function initChatOrchestrator(supabase) {
   console.log("[Chat Orchestrator] Iniciando escucha de comandos en el chat...");
@@ -63,6 +91,8 @@ function initChatOrchestrator(supabase) {
           if (!command) return;
 
           console.log(`[Chat Orchestrator] Comando detectado: ${command.type} de ${msg.sender_name}`);
+          processedMessageIds.add(msg.id);
+          saveProcessedMessageIds();
 
           await handleCommand(supabase, msg, command);
         } catch (err) {
@@ -361,12 +391,15 @@ function extractProjectName(description) {
  */
 async function scanRecentMessages(supabase) {
   try {
+    // Solo procesar mensajes de los últimos 60 segundos para evitar re-procesar antiguos
+    const cutoff = new Date(Date.now() - 60 * 1000).toISOString();
     const { data: messages, error } = await supabase
       .from("chat_messages")
       .select("*")
       .not("sender_id", "is", null)
+      .gte("created_at", cutoff)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(20);
 
     if (error || !messages) return;
 
@@ -379,6 +412,7 @@ async function scanRecentMessages(supabase) {
 
       console.log(`[Chat Orchestrator] Comando detectado vía scan: ${command.type} de ${msg.sender_name}`);
       processedMessageIds.add(msg.id);
+      saveProcessedMessageIds();
 
       try {
         await handleCommand(supabase, msg, command);
