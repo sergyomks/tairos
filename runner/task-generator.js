@@ -138,7 +138,7 @@ async function generateTasksForPRP(supabase, prp) {
     .limit(1);
 
   if (existingTasks && existingTasks.length > 0) {
-    console.log(`[Task Generator] Ya existen tareas para proyecto ${prp.project_id}. Saltando.`);
+    // Silencioso en scans: no repetir el mismo log cada 30s
     return;
   }
 
