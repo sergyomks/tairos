@@ -119,41 +119,53 @@ async function handleNewApp(supabase, msg, appDescription) {
   console.log(`[Chat Orchestrator] Procesando /new-app: "${appDescription}"`);
 
   // 1. Generar respuesta del Architect
-  const systemPrompt = `Eres @tairos-architect, el agente experto de Tairos OS especializado en arquitectura de software.
+  const systemPrompt = `Eres @tairos-architect de Tairos OS. Responde SIEMPRE en español.
 
-Tu tarea es analizar la solicitud de "${appDescription}" y proponer una arquitectura técnica completa y profesional.
+Sigue EXACTAMENTE el formato del ejemplo. No agregues introducciones como "Entendido" ni preguntes al final.
 
-DEBES incluir en tu respuesta:
+---
+EJEMPLO DE ENTRADA:
+/new-app de gestión de inventarios para restaurantes
 
-**Stack Técnico Propuesto:**
-- Frontend: (Next.js, React, Vue, etc.)
-- Backend: (Node.js, Python, etc.)
-- Base de Datos: (PostgreSQL, MongoDB, etc.)
-- Autenticación: (JWT, OAuth, Supabase Auth, etc.)
-- Deploy: (Vercel, AWS, Railway, etc.)
+EJEMPLO DE SALIDA:
+**1. Propuesta de valor**
+SaaS de control de inventarios para restaurantes que reduce pérdidas y automatiza reabastecimiento.
 
-**Arquitectura de Base de Datos:**
-Lista las tablas principales con sus campos:
-1. \`tabla_1\` — Descripción (id, campo1, campo2, created_at)
-2. \`tabla_2\` — Descripción (id, campo1, campo2, created_at)
-3. \`tabla_3\` — Descripción (id, campo1, campo2, created_at)
+**2. Stack confirmado**
+- Next.js 16 + React 19 + TypeScript + Tailwind CSS 3.4
+- Supabase (PostgreSQL + Auth + Realtime + Storage)
+- Arquitectura Feature-First en src/features/
+- Reutiliza skills de SaaS Factory V5
+- Deploy en Vercel
 
-**Funcionalidades Core:**
-- Funcionalidad 1
-- Funcionalidad 2
-- Funcionalidad 3
-- Funcionalidad 4
+**3. Tablas de Supabase sugeridas**
+- productos: id, nombre, categoria_id, stock, precio, created_at
+- categorias: id, nombre, created_at
+- movimientos: id, producto_id, tipo, cantidad, created_at
 
-**Plan de Desarrollo:**
-1. Fase 1: Base de datos y modelos
-2. Fase 2: API endpoints
-3. Fase 3: Frontend e integración
-4. Fase 4: Testing y deployment
+**4. Features a implementar en src/features/**
+- product-catalog: gestión de productos y categorías
+- stock-control: entradas, salidas y alertas de stock bajo
+- reports: dashboards de movimientos y reportes
 
-**Conclusión:**
-Al final DEBES decir: "He generado la PRP v1.0 para votación del equipo. Necesito al menos 2 aprobaciones para iniciar el desarrollo."
+**5. Flujo de gobernanza**
+- PRP v1.0 generada
+- Votación abierta a Negocio, Frontend y Backend
+- Se requieren 2 aprobaciones de 3 para iniciar desarrollo
+- Tras aprobación, el pipeline A2A (Architect → Workers) construye la app
 
-Sé técnico, específico y profesional. Responde en español.`;
+**6. Conclusión**
+He generado la PRP v1.0: InventarioRestaurante. Necesito al menos 2 aprobaciones de 3 humanos para iniciar el pipeline A2A.
+---
+
+Ahora procesa esta solicitud y responde con el MISMO formato:
+${appDescription}
+
+Reglas:
+- No uses MongoDB, Vue, Python, Laravel ni stacks alternativos.
+- El stack SIEMPRE es Next.js 16 + React 19 + TypeScript + Tailwind + Supabase.
+- La conclusión DEBE citar PRP y votación 2/3.
+- Sé conciso.`;
 
   const { content: architectResponse } = await callLLM({
     messages: [
@@ -227,7 +239,7 @@ async function handleFeature(supabase, msg, featureDescription) {
     messages: [
       {
         role: "system",
-        content: `Eres @tairos-architect. Analiza la funcionalidad solicitada y propone cómo implementarla. Responde en español, sé conciso. Menciona archivos a modificar y estimación de esfuerzo.`,
+        content: `Eres @tairos-architect de Tairos OS. Stack fijo: Next.js 16 + React 19 + TypeScript + Tailwind + Supabase. Arquitectura Feature-First en src/features/. Analiza la funcionalidad solicitada y propón cómo implementarla dentro de este stack. Menciona tablas de Supabase, componentes React, hooks y servicios a crear. Responde en español, sé conciso.`,
       },
       { role: "user", content: `Quiero agregar esta funcionalidad: ${featureDescription}` },
     ],
@@ -253,7 +265,7 @@ async function handlePRP(supabase, msg, prpDescription) {
     messages: [
       {
         role: "system",
-        content: `Eres @tairos-architect. Genera una propuesta técnica de requisitos (PRP) estructurada en Markdown basada en la descripción del usuario. Incluye: objetivo, alcance, tablas de DB, endpoints API, componentes UI, y criterios de aceptación. Responde en español.`,
+        content: `Eres @tairos-architect de Tairos OS. Genera una PRP (Product Requirements Proposal) estructurada en Markdown para el stack fijo: Next.js 16 + React 19 + TypeScript + Tailwind + Supabase. Incluye: problema, solución, usuario objetivo, stack confirmado, tablas de Supabase, features a implementar (src/features/), plan de desarrollo, KPI de éxito y criterios de aceptación. Recuerda: requiere aprobación 2/3 de los humanos. Responde en español.`,
       },
       { role: "user", content: prpDescription },
     ],
@@ -334,13 +346,7 @@ Mientras tanto, puedes describir la imagen con palabras y te ayudaré con eso. �
     messages: [
       {
         role: "system",
-        content: `Eres @tairos-architect, el agente principal de Tairos OS. 
-Responde de forma útil y concisa en español. 
-Puedes ayudar con:
-- /new-app [nombre]: Crear una nueva aplicación
-- /feature [descripción]: Agregar funcionalidad
-- /prp [descripción]: Generar propuesta técnica
-- Responder preguntas técnicas sobre el proyecto`,
+        content: `Eres @tairos-architect, el agente principal de Tairos OS, una fábrica de software dirigida por intenciones. Stack fijo: Next.js 16 + React 19 + TypeScript + Tailwind + Supabase. Gobernanza: aprobación democrática 2/3 de los humanos (Negocio, Frontend, Backend) antes de construir o desplegar. Puedes ayudar con: /new-app [descripción], /feature [descripción], /prp [descripción], o responder preguntas técnicas dentro del stack. Responde en español, de forma útil y concisa.`,
       },
       ...contextMessages,
     ],
