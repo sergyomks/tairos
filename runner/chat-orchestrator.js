@@ -30,8 +30,16 @@ const AGENT_SENDER_NAMES = ["@tairos-architect", "Tairos Agent", "System"];
  * 
  * @param {import("@supabase/supabase-js").SupabaseClient} supabase
  */
+const processedMessageIds = new Set();
+
 function initChatOrchestrator(supabase) {
   console.log("[Chat Orchestrator] Iniciando escucha de comandos en el chat...");
+
+  // Scan inicial de mensajes recientes (por si realtime falló)
+  scanRecentMessages(supabase);
+
+  // Polling de respaldo cada 15s
+  setInterval(() => scanRecentMessages(supabase), 15000);
 
   const channel = supabase
     .channel("runner-chat-orchestrator")
@@ -345,6 +353,42 @@ function extractProjectName(description) {
     .replace(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ\s]/g, "")
     .trim();
   return name || "Nuevo Proyecto";
+}
+
+/**
+ * Lee los últimos mensajes del chat y procesa comandos que no hayan sido procesados.
+ * Útil como respaldo cuando Supabase Realtime falla.
+ */
+async function scanRecentMessages(supabase) {
+  try {
+    const { data: messages, error } = await supabase
+      .from("chat_messages")
+      .select("*")
+      .not("sender_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (error || !messages) return;
+
+    for (const msg of messages) {
+      if (processedMessageIds.has(msg.id)) continue;
+      if (AGENT_SENDER_NAMES.some((name) => msg.sender_name === name)) continue;
+
+      const command = detectCommand(msg.content);
+      if (!command) continue;
+
+      console.log(`[Chat Orchestrator] Comando detectado vía scan: ${command.type} de ${msg.sender_name}`);
+      processedMessageIds.add(msg.id);
+
+      try {
+        await handleCommand(supabase, msg, command);
+      } catch (err) {
+        console.error("[Chat Orchestrator] Error procesando mensaje escaneado:", err.message);
+      }
+    }
+  } catch (err) {
+    console.error("[Chat Orchestrator] Error en scan de mensajes:", err.message);
+  }
 }
 
 module.exports = { initChatOrchestrator };
