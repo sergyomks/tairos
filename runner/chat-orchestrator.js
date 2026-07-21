@@ -39,34 +39,37 @@ function initChatOrchestrator(supabase) {
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "chat_messages" },
       async (payload) => {
-        const msg = payload.new;
-
-        // Ignorar mensajes del propio agente
-        if (AGENT_SENDER_NAMES.some((name) => msg.sender_name === name)) {
-          return;
-        }
-        if (!msg.sender_id) {
-          return; // Mensajes sin sender_id son del sistema
-        }
-
-        // Detectar si hay un comando
-        const command = detectCommand(msg.content);
-        if (!command) return;
-
-        console.log(`[Chat Orchestrator] Comando detectado: ${command.type} de ${msg.sender_name}`);
-
         try {
+          const msg = payload.new;
+
+          // Ignorar mensajes del propio agente
+          if (AGENT_SENDER_NAMES.some((name) => msg.sender_name === name)) {
+            return;
+          }
+          if (!msg.sender_id) {
+            return; // Mensajes sin sender_id son del sistema
+          }
+
+          // Detectar si hay un comando
+          const command = detectCommand(msg.content);
+          if (!command) return;
+
+          console.log(`[Chat Orchestrator] Comando detectado: ${command.type} de ${msg.sender_name}`);
+
           await handleCommand(supabase, msg, command);
         } catch (err) {
           console.error("[Chat Orchestrator] Error al procesar comando:", err.message);
-          
-          // Enviar mensaje de error al chat
-          await supabase.from("chat_messages").insert({
-            sender_id: null,
-            sender_name: "@tairos-architect",
-            content: `⚠️ Error al procesar el comando: ${err.message}. Verifica la configuración del runner.`,
-            project_id: msg.project_id || null,
-          });
+
+          try {
+            await supabase.from("chat_messages").insert({
+              sender_id: null,
+              sender_name: "@tairos-architect",
+              content: `⚠️ Error al procesar el comando: ${err.message}. Verifica que Ollama esté corriendo (ollama serve) y el modelo instalado.`,
+              project_id: payload.new?.project_id || null,
+            });
+          } catch (replyErr) {
+            console.error("[Chat Orchestrator] No se pudo enviar mensaje de error:", replyErr.message);
+          }
         }
       }
     )

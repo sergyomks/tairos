@@ -88,9 +88,13 @@ async function callOpenRouter({ messages, model, maxTokens, temperature, useCach
   };
 
   let lastError = null;
+  const timeoutMs = 30000;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
       const response = await fetch(provider.url, {
         method: "POST",
         headers: {
@@ -100,7 +104,10 @@ async function callOpenRouter({ messages, model, maxTokens, temperature, useCach
           "X-Title": "Tairos OS Runner",
         },
         body: JSON.stringify(body),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -147,16 +154,17 @@ async function callOpenRouter({ messages, model, maxTokens, temperature, useCach
 
       return result;
 
-    } catch (err) {
-      lastError = err;
-      if (attempt < 2) {
-        console.warn(`[LLM] Reintentando en 2s... (intento ${attempt}/2)`);
-        await new Promise((r) => setTimeout(r, 2000));
-      }
+  } catch (err) {
+    clearTimeout(timeoutId);
+    lastError = err;
+    if (attempt < 2) {
+      console.warn(`[LLM] Reintentando en 2s... (intento ${attempt}/2)`);
+      await new Promise((r) => setTimeout(r, 2000));
     }
   }
+}
 
-  console.error("[LLM] OpenRouter falló. Intentando con Ollama local...");
+console.error("[LLM] OpenRouter falló. Intentando con Ollama local...");
   
   // Fallback a Ollama si OpenRouter falla
   const ollamaProvider = { type: "ollama", url: process.env.OLLAMA_BASE_URL || "http://localhost:11434", key: null };
@@ -191,14 +199,22 @@ async function callOllama({ messages, model, maxTokens, temperature, useCache, p
     },
   };
 
+  const timeoutMs = 120000;
+
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     const response = await fetch(`${provider.url}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -259,30 +275,16 @@ function generateFallbackResponse(messages, role) {
 
   if (role === "architect" || role === "worker") {
     if (lastMessage.includes("/new-app")) {
-      const appName = lastMessage.replace("/new-app", "").trim() || "Nueva Aplicación";
-      return `He analizado tu solicitud para "${appName}". Propongo la siguiente arquitectura:
-
-**Stack Técnico:**
-- Frontend: Next.js 14 + React 18 + Tailwind CSS
-- Base de Datos: Supabase (PostgreSQL + Realtime)
-- Autenticación: Supabase Auth con RLS
-- Deploy: Vercel
-
-**Tablas principales:**
-1. \`users\` — Gestión de usuarios y perfiles
-2. \`${appName.toLowerCase().replace(/\s+/g, '_')}_items\` — Entidad principal del negocio
-3. \`analytics\` — Métricas y eventos de uso
-
-He generado la PRP v1.0 para votación del equipo. Necesito al menos 2 aprobaciones para proceder con la codificación.`;
+      const appName = lastMessage.replace(/.*\/new-app/, "").trim() || "Nueva Aplicación";
+      const safeName = appName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+      return `1. Propuesta de valor\nSaaS para ${appName.toLowerCase()} que automatiza procesos clave.\n\n2. Stack confirmado\n- Next.js 16 + React 19 + TypeScript + Tailwind CSS\n- Supabase (PostgreSQL + Auth + Realtime + Storage)\n- Arquitectura Feature-First en src/features/\n- Deploy en Vercel\n\n3. Tablas de Supabase sugeridas\n- users: id, email, role, created_at\n- ${safeName}_items: id, name, description, created_at\n- analytics: id, event_type, payload, created_at\n\n4. Features a implementar en src/features/\n- auth: autenticación con Supabase\n- dashboard: panel principal\n- ${safeName}: gestión principal del negocio\n\n5. Flujo de gobernanza\n- PRP v1.0 generada\n- Votación abierta a Negocio, Frontend y Backend\n- Se requieren 2 aprobaciones de 3 para iniciar desarrollo\n- Tras aprobación, el pipeline A2A construye la app\n\n6. Conclusión\nHe generado la PRP v1.0 para votación. Necesito al menos 2 aprobaciones de 3 humanos para iniciar el pipeline A2A.\n\n> ⚠️ Respuesta de fallback: Ollama no respondió. Verifica \`ollama serve\` y el modelo instalado.`;
     }
 
     if (lastMessage.includes("/feature")) {
-      return `Entendido. Analizaré la funcionalidad solicitada y prepararé una propuesta técnica para votación del equipo.`;
+      return `Entendido. Analizaré la funcionalidad solicitada y prepararé una propuesta técnica dentro del stack Tairos OS (Next.js + Supabase) para votación del equipo.`;
     }
 
-    return `He recibido tu mensaje. Estoy analizando el contexto para proporcionar la mejor respuesta técnica.
-
-> ⚠️ Nota del sistema: La API de IA no está disponible en este momento. Esta es una respuesta de fallback. Configura \`OPENROUTER_API_KEY\` en el archivo \`.env.local\` para habilitar respuestas inteligentes.`;
+    return `He recibido tu mensaje. Estoy analizando el contexto dentro del stack Tairos OS.\n\n> ⚠️ Respuesta de fallback: Ollama no respondió. Verifica \`ollama serve\` y el modelo instalado.`;
   }
 
   if (role === "healer") {
