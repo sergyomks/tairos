@@ -637,9 +637,8 @@ async function checkPendingTasks() {
     for (const task of data) {
       await processTask(task);
     }
-  } else {
-    console.log("[Queue] No hay tareas pendientes.");
   }
+  // Silencioso cuando no hay tareas para evitar spam en el log
 }
 
 /**
