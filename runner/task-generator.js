@@ -21,7 +21,8 @@ const PIPELINE_PHASES = [
 /**
  * Inicializa el generador de tareas.
  * Escucha INSERT y UPDATE en prp_votes para detectar quórum.
- * 
+ * Además hace scan inicial y polling por si Realtime pierde eventos.
+ *
  * @param {import("@supabase/supabase-js").SupabaseClient} supabase
  */
 function initTaskGenerator(supabase) {
@@ -48,7 +49,38 @@ function initTaskGenerator(supabase) {
       console.log(`[Task Generator] Canal suscrito: ${status}`);
     });
 
+  // Scan inicial y polling cada 30s por si los votos llegaron antes del arranque
+  setTimeout(() => scanApprovedPRPs(supabase), 2000);
+  setInterval(() => scanApprovedPRPs(supabase), 30000);
+
   return channel;
+}
+
+/**
+ * Busca PRPs aprobadas que aún no tengan tareas y genera el pipeline.
+ */
+async function scanApprovedPRPs(supabase) {
+  try {
+    const { data: prps, error } = await supabase
+      .from("prps")
+      .select("*, prp_votes(*)")
+      .eq("status", "approved");
+
+    if (error) {
+      console.error("[Task Generator] Error scan PRPs aprobadas:", error.message);
+      return;
+    }
+
+    if (!prps || prps.length === 0) return;
+
+    for (const prp of prps) {
+      const approvedCount = prp.prp_votes?.filter((v) => v.vote === "approved").length || 0;
+      if (approvedCount < REQUIRED_VOTES) continue;
+      await generateTasksForPRP(supabase, prp);
+    }
+  } catch (err) {
+    console.error("[Task Generator] Error en scanApprovedPRPs:", err.message);
+  }
 }
 
 /**
@@ -86,35 +118,38 @@ async function checkQuorumAndGenerate(supabase, prpId) {
     return;
   }
 
-  // 3. Verificar que no esté ya aprobada (evitar duplicados)
-  if (prp.status === "approved") {
-    console.log("[Task Generator] PRP ya fue aprobada previamente. Saltando.");
+  await generateTasksForPRP(supabase, prp);
+}
+
+/**
+ * Genera las tareas del pipeline para una PRP aprobada si aún no existen.
+ */
+async function generateTasksForPRP(supabase, prp) {
+  if (!prp.project_id) {
+    console.error("[Task Generator] PRP sin project_id. Saltando.");
     return;
   }
 
-  // 4. Verificar que no existan tareas para este proyecto (evitar duplicados)
-  if (prp.project_id) {
-    const { data: existingTasks } = await supabase
-      .from("agent_tasks")
-      .select("id")
-      .eq("project_id", prp.project_id)
-      .limit(1);
+  // Verificar que no existan tareas para este proyecto (evitar duplicados)
+  const { data: existingTasks } = await supabase
+    .from("agent_tasks")
+    .select("id")
+    .eq("project_id", prp.project_id)
+    .limit(1);
 
-    if (existingTasks && existingTasks.length > 0) {
-      console.log("[Task Generator] Ya existen tareas para este proyecto. Saltando.");
-      return;
-    }
+  if (existingTasks && existingTasks.length > 0) {
+    console.log(`[Task Generator] Ya existen tareas para proyecto ${prp.project_id}. Saltando.`);
+    return;
+  }
+
+  // Si la PRP no está marcada como approved, actualizarla
+  if (prp.status !== "approved") {
+    await supabase.from("prps").update({ status: "approved" }).eq("id", prp.id);
   }
 
   console.log(`[Task Generator] ✓ Quórum alcanzado para "${prp.title}". Generando pipeline...`);
 
-  // 5. Actualizar estado de la PRP a "approved"
-  await supabase
-    .from("prps")
-    .update({ status: "approved" })
-    .eq("id", prpId);
-
-  // 6. Crear las 6 tareas del pipeline A2A
+  // Crear las 6 tareas del pipeline A2A
   const tasks = PIPELINE_PHASES.map((p) => ({
     project_id: prp.project_id,
     phase: p.phase,
@@ -122,9 +157,7 @@ async function checkQuorumAndGenerate(supabase, prpId) {
     logs: [],
   }));
 
-  const { error: insertError } = await supabase
-    .from("agent_tasks")
-    .insert(tasks);
+  const { error: insertError } = await supabase.from("agent_tasks").insert(tasks);
 
   if (insertError) {
     console.error("[Task Generator] Error al crear tareas:", insertError.message);
@@ -133,7 +166,7 @@ async function checkQuorumAndGenerate(supabase, prpId) {
 
   console.log(`[Task Generator] ✓ 6 tareas creadas exitosamente para proyecto ${prp.project_id}`);
 
-  // 7. Notificar en el chat
+  // Notificar en el chat
   await supabase.from("chat_messages").insert({
     sender_id: null,
     sender_name: "@tairos-architect",
