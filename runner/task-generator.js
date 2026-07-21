@@ -33,12 +33,11 @@ function initTaskGenerator(supabase) {
       "postgres_changes",
       { event: "*", schema: "public", table: "prp_votes" },
       async (payload) => {
-        const vote = payload.new;
-        if (!vote || !vote.prp_id) return;
-
-        console.log(`[Task Generator] Voto detectado para PRP: ${vote.prp_id} → ${vote.vote}`);
-
         try {
+          const vote = payload.new;
+          if (!vote || !vote.prp_id) return;
+
+          console.log(`[Task Generator] Voto detectado para PRP: ${vote.prp_id} → ${vote.vote}`);
           await checkQuorumAndGenerate(supabase, vote.prp_id);
         } catch (err) {
           console.error("[Task Generator] Error al verificar quórum:", err.message);

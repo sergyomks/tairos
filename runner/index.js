@@ -651,19 +651,27 @@ function subscribeToTasks() {
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "agent_tasks" },
-      (payload) => {
-        if (payload.new.status === "pending") {
-          processTask(payload.new);
+      async (payload) => {
+        try {
+          if (payload.new.status === "pending") {
+            await processTask(payload.new);
+          }
+        } catch (err) {
+          console.error("[Tasks] Error procesando tarea INSERT:", err.message);
         }
       }
     )
     .on(
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "agent_tasks" },
-      (payload) => {
-        // Re-encolar tareas que se reiniciaron manualmente a "pending"
-        if (payload.new.status === "pending" && payload.old.status !== "pending") {
-          processTask(payload.new);
+      async (payload) => {
+        try {
+          // Re-encolar tareas que se reiniciaron manualmente a "pending"
+          if (payload.new.status === "pending" && payload.old.status !== "pending") {
+            await processTask(payload.new);
+          }
+        } catch (err) {
+          console.error("[Tasks] Error procesando tarea UPDATE:", err.message);
         }
       }
     )
@@ -708,7 +716,15 @@ async function init() {
   // Cola de Tareas
   await checkPendingTasks();
   subscribeToTasks();
-  console.log("[Init] ✓ Task Queue activada");
+  // Polling de respaldo cada 30s (por si realtime falla)
+  setInterval(async () => {
+    try {
+      await checkPendingTasks();
+    } catch (err) {
+      console.error("[Polling Error]", err.message);
+    }
+  }, 30000);
+  console.log("[Init] ✓ Task Queue activada (realtime + polling cada 30s)");
 
   console.log("\n=========================================");
   console.log("   RUNNER LISTO — Esperando comandos...  ");
