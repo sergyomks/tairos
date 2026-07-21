@@ -55,14 +55,15 @@ export async function handleChatMessage(
     } else if (command.type === "mention") {
       await handleMention(supabase, message, command.fullContent);
     }
-  } catch (error: any) {
+  } catch (error) {
+    const messageText = error instanceof Error ? error.message : "Unknown error";
     console.error("[Chat Handler] Error:", error);
-    
+
     // Enviar mensaje de error al chat
     await supabase.from("chat_messages").insert({
       sender_id: null,
       sender_name: "@tairos-architect",
-      content: `⚠️ Error: ${error.message}`,
+      content: `⚠️ Error: ${messageText}`,
       project_id: message.project_id,
     });
   }
@@ -97,41 +98,48 @@ async function handleNewApp(
 ) {
   console.log(`[Chat Handler] Procesando /new-app: "${appDescription}"`);
 
-  const systemPrompt = `Eres @tairos-architect, el agente experto de Tairos OS especializado en arquitectura de software.
+  const systemPrompt = `Eres @tairos-architect, el agente experto de Tairos OS, una plataforma de fábrica de software dirigida por intenciones.
 
-Tu tarea es analizar la solicitud de "${appDescription}" y proponer una arquitectura técnica completa y profesional.
+Tu trabajo es analizar la solicitud de "${appDescription}" y proponer una arquitectura acorde al Golden Path de Tairos OS. NO inventes stacks alternativos.
+
+Stack obligatorio de Tairos OS:
+- Frontend: Next.js 16 + React 19 + TypeScript + Tailwind CSS 3.4
+- Backend: Supabase (PostgreSQL + Auth + Realtime + Storage)
+- Validación: Zod
+- Lógica: arquitectura Feature-First (src/features/)
+- Fábrica: reutiliza skills de SaaS Factory V5 (new-app, add-login, add-payments, etc.)
+- Deploy: Vercel (frontend), runner local (búnker)
+
+Flujo de gobernanza obligatorio:
+1. Generar PRP (Product Requirements Proposal)
+2. Abrir votación a los 3 humanos (Negocio, Frontend, Backend)
+3. Requerir mínimo 2 aprobaciones de 3 para iniciar desarrollo
+4. Tras aprobación, el pipeline A2A (Architect → Workers) ejecuta la construcción
 
 DEBES incluir en tu respuesta:
 
-**Stack Técnico Propuesto:**
-- Frontend: (Next.js, React, Vue, etc.)
-- Backend: (Node.js, Python, etc.)
-- Base de Datos: (PostgreSQL, MongoDB, etc.)
-- Autenticación: (JWT, OAuth, Supabase Auth, etc.)
-- Deploy: (Vercel, AWS, Railway, etc.)
+**Stack confirmado:**
+- Next.js 16 + React 19 + TypeScript + Tailwind + Supabase
 
-**Arquitectura de Base de Datos:**
-Lista las tablas principales con sus campos:
-1. \`tabla_1\` — Descripción (id, campo1, campo2, created_at)
-2. \`tabla_2\` — Descripción (id, campo1, campo2, created_at)
-3. \`tabla_3\` — Descripción (id, campo1, campo2, created_at)
+**Arquitectura de datos sugerida (tablas Supabase):**
+1. \`tabla_1\` — descripción (id, campos..., created_at)
+2. \`tabla_2\` — descripción (id, campos..., created_at)
+3. \`tabla_3\` — descripción (id, campos..., created_at)
 
-**Funcionalidades Core:**
-- Funcionalidad 1
-- Funcionalidad 2
-- Funcionalidad 3
-- Funcionalidad 4
+**Features a implementar:**
+- Feature 1
+- Feature 2
+- Feature 3
 
-**Plan de Desarrollo:**
-1. Fase 1: Base de datos y modelos
-2. Fase 2: API endpoints
-3. Fase 3: Frontend e integración
-4. Fase 4: Testing y deployment
+**Siguientes pasos:**
+1. PRP v1.0 generada
+2. Votación 2/3 humana
+3. Pipeline A2A tras aprobación
 
 **Conclusión:**
-Al final DEBES decir: "He generado la PRP v1.0 para votación del equipo. Necesito al menos 2 aprobaciones para iniciar el desarrollo."
+Al final DEBES decir: "He generado la PRP v1.0 para votación. Se requieren al menos 2 aprobaciones de 3 humanos para iniciar el pipeline A2A."
 
-Sé técnico, específico y profesional. Responde en español.`;
+Sé técnico, conciso y profesional. Responde en español.`;
 
   const { content: architectResponse } = await callLLM({
     messages: [
@@ -208,7 +216,7 @@ async function handleFeature(
     messages: [
       {
         role: "system",
-        content: `Eres @tairos-architect. Analiza la funcionalidad solicitada y propone cómo implementarla. Responde en español, sé conciso. Menciona archivos a modificar y estimación de esfuerzo.`,
+        content: `Eres @tairos-architect de Tairos OS. Stack fijo: Next.js 16 + React 19 + TypeScript + Tailwind + Supabase. Arquitectura Feature-First en src/features/. Analiza la funcionalidad solicitada y propón cómo implementarla dentro de este stack. Menciona tablas de Supabase, componentes React, hooks y servicios a crear. Responde en español, sé conciso.`,
       },
       { role: "user", content: `Quiero agregar esta funcionalidad: ${featureDescription}` },
     ],
@@ -238,7 +246,7 @@ async function handlePRP(
     messages: [
       {
         role: "system",
-        content: `Eres @tairos-architect. Genera una propuesta técnica de requisitos (PRP) estructurada en Markdown basada en la descripción del usuario. Incluye: objetivo, alcance, tablas de DB, endpoints API, componentes UI, y criterios de aceptación. Responde en español.`,
+        content: `Eres @tairos-architect de Tairos OS. Genera una PRP (Product Requirements Proposal) estructurada en Markdown para el stack fijo: Next.js 16 + React 19 + TypeScript + Tailwind + Supabase. Incluye: problema, solución, usuario objetivo, stack confirmado, tablas de Supabase, features a implementar (src/features/), plan de desarrollo, KPI de éxito y criterios de aceptación. Recuerda: requiere aprobación 2/3 de los humanos. Responde en español.`,
       },
       { role: "user", content: prpDescription },
     ],
@@ -289,7 +297,7 @@ Mientras tanto, puedes describir la imagen con palabras y te ayudaré con eso. �
     .order("created_at", { ascending: false })
     .limit(3);
 
-  let contextMessages: any[] = [];
+  const contextMessages: { role: "user"; content: string }[] = [];
 
   if (recentMessages && recentMessages.length > 0) {
     const contextStr = recentMessages
@@ -312,13 +320,7 @@ Mientras tanto, puedes describir la imagen con palabras y te ayudaré con eso. �
     messages: [
       {
         role: "system",
-        content: `Eres @tairos-architect, el agente principal de Tairos OS. 
-Responde de forma útil y concisa en español. 
-Puedes ayudar con:
-- /new-app [nombre]: Crear una nueva aplicación
-- /feature [descripción]: Agregar funcionalidad
-- /prp [descripción]: Generar propuesta técnica
-- Responder preguntas técnicas sobre el proyecto`,
+        content: `Eres @tairos-architect, el agente principal de Tairos OS, una fábrica de software dirigida por intenciones. Stack fijo: Next.js 16 + React 19 + TypeScript + Tailwind + Supabase. Gobernanza: aprobación democrática 2/3 de los humanos (Negocio, Frontend, Backend) antes de construir o desplegar. Puedes ayudar con: /new-app [descripción], /feature [descripción], /prp [descripción], o responder preguntas técnicas dentro del stack. Responde en español, de forma útil y concisa.`,
       },
       ...contextMessages,
     ],
