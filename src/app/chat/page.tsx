@@ -119,7 +119,7 @@ export default function ChatPage() {
         (payload) => {
           const newMsg = payload.new;
           setMessages((prev) => [...prev, newMsg]);
-          
+
           // Si es un mensaje del agente, ocultar indicador de "escribiendo"
           const meta = getSenderMetadata(newMsg.sender_name, newMsg.sender_id);
           if (meta.isAgent) {
@@ -129,7 +129,33 @@ export default function ChatPage() {
       )
       .subscribe();
 
-    // 5. Realtime votes subscription
+    // 5. Realtime PRPs subscription
+    const channelPRPs = supabase
+      .channel("realtime-prps")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prps" },
+        async (payload) => {
+          if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
+            const prp = payload.new;
+            if (prp.status === "pending") {
+              setActivePRP(prp);
+              setShowPRP(true);
+              // Fetch votes for this PRP
+              const { data: votesData } = await supabase
+                .from("prp_votes")
+                .select("*")
+                .eq("prp_id", prp.id);
+              if (votesData) {
+                setVotes(votesData);
+              }
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    // 6. Realtime votes subscription
     const channelVotes = supabase
       .channel("realtime-votes")
       .on(
@@ -149,6 +175,7 @@ export default function ChatPage() {
 
     return () => {
       supabase.removeChannel(channelMessages);
+      supabase.removeChannel(channelPRPs);
       supabase.removeChannel(channelVotes);
     };
   }, []);

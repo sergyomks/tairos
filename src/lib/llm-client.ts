@@ -85,7 +85,7 @@ export async function callLLM({
 
 async function callOpenRouter({
   messages,
-  model,
+  model = "architect",
   maxTokens,
   temperature,
   provider,
@@ -130,7 +130,7 @@ async function callOpenRouter({
 
 async function callOllama({
   messages,
-  model,
+  model = "architect",
   maxTokens,
   temperature,
   provider,
