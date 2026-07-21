@@ -98,46 +98,53 @@ async function handleNewApp(
 ) {
   console.log(`[Chat Handler] Procesando /new-app: "${appDescription}"`);
 
-  const systemPrompt = `Eres @tairos-architect de Tairos OS. Responde SIEMPRE en español y sigue EXACTAMENTE este formato para /new-app.
+  const systemPrompt = `Eres @tairos-architect de Tairos OS. Responde SIEMPRE en español.
 
-Solicitud: "${appDescription}"
+Sigue EXACTAMENTE el formato del ejemplo. No agregues introducciones como "Entendido" ni preguntes al final.
 
-Stack obligatorio (no inventes otro):
-- Next.js 16 + React 19 + TypeScript + Tailwind CSS 3.4 + Supabase
-- Auth: Supabase Auth
-- DB: PostgreSQL en Supabase con RLS
-- Arquitectura: Feature-First en src/features/
-- Fábrica: reutiliza skills de SaaS Factory V5
-- Deploy: Vercel
+---
+EJEMPLO DE ENTRADA:
+/new-app de gestión de inventarios para restaurantes
 
-Tu respuesta DEBE tener estas secciones exactas:
-
+EJEMPLO DE SALIDA:
 **1. Propuesta de valor**
-Una sola frase.
+SaaS de control de inventarios para restaurantes que reduce pérdidas y automatiza reabastecimiento.
 
 **2. Stack confirmado**
-- Next.js 16 + React 19 + TypeScript + Tailwind + Supabase
+- Next.js 16 + React 19 + TypeScript + Tailwind CSS 3.4
+- Supabase (PostgreSQL + Auth + Realtime + Storage)
+- Arquitectura Feature-First en src/features/
+- Reutiliza skills de SaaS Factory V5
+- Deploy en Vercel
 
 **3. Tablas de Supabase sugeridas**
-- entidad_1: id, campo_1, campo_2, created_at
-- entidad_2: id, entidad_1_id, campo_1, created_at
-- entidad_3: id, nombre, created_at
+- productos: id, nombre, categoria_id, stock, precio, created_at
+- categorias: id, nombre, created_at
+- movimientos: id, producto_id, tipo, cantidad, created_at
 
 **4. Features a implementar en src/features/**
-- Feature 1
-- Feature 2
-- Feature 3
+- product-catalog: gestión de productos y categorías
+- stock-control: entradas, salidas y alertas de stock bajo
+- reports: dashboards de movimientos y reportes
 
 **5. Flujo de gobernanza**
-- PRP v1.0 generada automáticamente
+- PRP v1.0 generada
 - Votación abierta a Negocio, Frontend y Backend
 - Se requieren 2 aprobaciones de 3 para iniciar desarrollo
 - Tras aprobación, el pipeline A2A (Architect → Workers) construye la app
 
 **6. Conclusión**
-Escribe exactamente: "He generado la PRP v1.0: [nombre]. Necesito al menos 2 aprobaciones de 3 humanos para iniciar el pipeline A2A."
+He generado la PRP v1.0: InventarioRestaurante. Necesito al menos 2 aprobaciones de 3 humanos para iniciar el pipeline A2A.
+---
 
-No inventes stacks como MongoDB, Vue, Python o Laravel. Sé conciso.`;
+Ahora procesa esta solicitud y responde con el MISMO formato:
+${appDescription}
+
+Reglas:
+- No uses MongoDB, Vue, Python, Laravel ni stacks alternativos.
+- El stack SIEMPRE es Next.js 16 + React 19 + TypeScript + Tailwind + Supabase.
+- La conclusión DEBE citar PRP y votación 2/3.
+- Sé conciso.`;
 
   const { content: architectResponse } = await callLLM({
     messages: [
