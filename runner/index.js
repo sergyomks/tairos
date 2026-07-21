@@ -23,6 +23,7 @@ const { callLLM } = require("./llm");
 const { cloneRepository, fullWorkflow, getProjectPath, projectExists } = require("./git-manager");
 const { deployWithValidation } = require("./vercel-deployer");
 const { initCostOptimizer, cleanOldCache, getUsageStats } = require("./cost-optimizer");
+const { createScaffold } = require("./scaffold");
 
 // ============================================
 // CONFIGURACIÓN DE SUPABASE
@@ -198,6 +199,7 @@ async function processTask(task) {
     // Obtener el directorio de trabajo del proyecto (si existe)
     let projectDir = path.resolve(__dirname, "..");
     let useRealCommands = false;
+    let projectName = null;
 
     if (task.project_id) {
       const { data: project } = await supabase
@@ -207,8 +209,8 @@ async function processTask(task) {
         .single();
 
       if (project) {
-        const projectName = project.name.toLowerCase().replace(/\s+/g, "-");
-        
+        projectName = project.name.toLowerCase().replace(/\s+/g, "-");
+
         // Si tiene repository_url, clonar/actualizar el repo
         if (project.repository_url) {
           try {
@@ -229,7 +231,7 @@ async function processTask(task) {
     }
 
     // Ejecutar la fase correspondiente
-    await executePhase(task, addLog, projectDir, useRealCommands);
+    await executePhase(task, addLog, projectDir, useRealCommands, projectName);
 
     // Marcar como completada
     await supabase
@@ -303,14 +305,24 @@ async function processTask(task) {
  * Ejecuta los comandos específicos de cada fase del pipeline.
  * Usa comandos reales si el proyecto existe, sino genera con IA.
  */
-async function executePhase(task, addLog, projectDir, useRealCommands) {
+async function executePhase(task, addLog, projectDir, useRealCommands, projectName) {
   const fs = require("fs");
 
   switch (task.phase) {
     case "prp": {
       await addLog("[Architect] Analizando los requerimientos del proyecto...");
-      
-      // Usar IA para generar el PRP
+
+      // 1. Crear scaffold de la app en workspace/
+      if (projectName) {
+        try {
+          const scaffoldDir = await createScaffold(projectName, `PRP ${task.project_id}`);
+          await addLog(`[Scaffold] ✓ Estructura base creada en ${scaffoldDir}`);
+        } catch (scaffoldErr) {
+          await addLog(`[Scaffold] ⚠️ Error al crear scaffold: ${scaffoldErr.message}`);
+        }
+      }
+
+      // 2. Usar IA para generar el PRP detallado
       const { content: prpContent } = await callLLM({
         messages: [
           {
