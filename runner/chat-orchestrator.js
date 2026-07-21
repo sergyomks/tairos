@@ -15,9 +15,9 @@ const {
 
 // Patrones de comandos que activan al Architect
 const COMMAND_PATTERNS = [
-  { pattern: /^\/new-app\s+(.+)/i, type: "new-app" },
-  { pattern: /^\/feature\s+(.+)/i, type: "feature" },
-  { pattern: /^\/prp\s+(.+)/i, type: "prp" },
+  { pattern: /\/new-app\s+(.+)/i, type: "new-app" },
+  { pattern: /\/feature\s+(.+)/i, type: "feature" },
+  { pattern: /\/prp\s+(.+)/i, type: "prp" },
   { pattern: /@tairos\b/i, type: "mention" },
 ];
 
