@@ -18,9 +18,9 @@ const MODELS = {
   },
   // Ollama local
   ollama: {
-    architect: "qwen3.5:9b",
-    worker: "qwen3.5:9b",
-    healer: "qwen3.5:9b",
+    architect: "qwen2.5-coder:7b",
+    worker: "qwen2.5-coder:7b",
+    healer: "qwen2.5-coder:7b",
   },
 };
 
