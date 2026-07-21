@@ -7,9 +7,16 @@
  */
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // Modelos disponibles por rol
 const MODELS = {
+  // Groq (rápido, free tier disponible)
+  groq: {
+    architect: "llama-3.3-70b-versatile",
+    worker: "llama-3.1-8b-instant",
+    healer: "llama-3.1-8b-instant",
+  },
   // OpenRouter
   openrouter: {
     architect: "anthropic/claude-sonnet-4",
@@ -28,10 +35,16 @@ const MODELS = {
  * Detecta el provider disponible (OpenRouter o Ollama).
  */
 function getProvider() {
+  const groqKey = process.env.GROQ_API_KEY;
   const openrouterKey = process.env.OPENROUTER_API_KEY;
   const ollamaUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 
-  // Priorizar OpenRouter si está configurado
+  // Priorizar Groq si está configurado
+  if (groqKey && !groqKey.includes("tu-") && !groqKey.includes("aqui")) {
+    return { type: "groq", url: GROQ_URL, key: groqKey };
+  }
+
+  // Segunda opción: OpenRouter
   if (openrouterKey && !openrouterKey.includes("tu-") && !openrouterKey.includes("aqui")) {
     return { type: "openrouter", url: OPENROUTER_URL, key: openrouterKey };
   }
@@ -67,11 +80,13 @@ async function callLLM({ messages, model = "architect", maxTokens = 2048, temper
 
   const provider = getProvider();
 
+  if (provider.type === "groq") {
+    return await callGroq({ messages, model, maxTokens, temperature, useCache, provider });
+  }
   if (provider.type === "openrouter") {
     return await callOpenRouter({ messages, model, maxTokens, temperature, useCache, provider });
-  } else {
-    return await callOllama({ messages, model, maxTokens, temperature, useCache, provider });
   }
+  return await callOllama({ messages, model, maxTokens, temperature, useCache, provider });
 }
 
 /**
@@ -167,6 +182,110 @@ async function callOpenRouter({ messages, model, maxTokens, temperature, useCach
 console.error("[LLM] OpenRouter falló. Intentando con Ollama local...");
   
   // Fallback a Ollama si OpenRouter falla
+  const ollamaProvider = { type: "ollama", url: process.env.OLLAMA_BASE_URL || "http://localhost:11434", key: null };
+  try {
+    return await callOllama({ messages, model, maxTokens, temperature, useCache, provider: ollamaProvider });
+  } catch (ollamaErr) {
+    console.error("[LLM] Ollama también falló. Usando fallback.");
+    return {
+      content: generateFallbackResponse(messages, model),
+      model: "fallback-local",
+      usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+      error: lastError?.message,
+    };
+  }
+}
+
+/**
+ * Llama a Groq (API compatible con OpenAI).
+ */
+async function callGroq({ messages, model, maxTokens, temperature, useCache, provider }) {
+  const modelId = MODELS.groq[model] || MODELS.groq.architect;
+
+  const body = {
+    model: modelId,
+    messages,
+    max_tokens: maxTokens,
+    temperature,
+  };
+
+  const timeoutMs = 60000;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      const response = await fetch(provider.url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${provider.key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        lastError = new Error(`Groq HTTP ${response.status}: ${errorText}`);
+        console.error(`[LLM] Intento ${attempt} fallido:`, lastError.message);
+
+        if (response.status === 429) {
+          await new Promise((r) => setTimeout(r, 3000 * attempt));
+          continue;
+        }
+        throw lastError;
+      }
+
+      const data = await response.json();
+
+      if (!data.choices || data.choices.length === 0) {
+        throw new Error("Groq devolvió una respuesta vacía");
+      }
+
+      const result = {
+        content: data.choices[0].message.content,
+        model: data.model || modelId,
+        usage: data.usage || {},
+      };
+
+      const totalTokens = result.usage.total_tokens || 0;
+      console.log(`[LLM] ✓ Groq | Modelo: ${result.model} | Tokens: ${totalTokens}`);
+
+      try {
+        const { logUsage, setCachedResponse } = require("./cost-optimizer");
+        const cost = logUsage({
+          model: result.model,
+          prompt_tokens: result.usage.prompt_tokens || 0,
+          completion_tokens: result.usage.completion_tokens || 0,
+        });
+        console.log(`[LLM] Costo: $${cost.toFixed(4)}`);
+
+        if (useCache) {
+          setCachedResponse(messages, model, result, cost);
+        }
+      } catch (err) {
+        // Cost optimizer no disponible
+      }
+
+      return result;
+
+    } catch (err) {
+      lastError = err;
+      if (attempt < 2) {
+        console.warn(`[LLM] Reintentando en 2s... (intento ${attempt}/2)`);
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
+  }
+
+  console.error("[LLM] Groq falló. Intentando con Ollama local...");
+
+  // Fallback a Ollama si Groq falla
   const ollamaProvider = { type: "ollama", url: process.env.OLLAMA_BASE_URL || "http://localhost:11434", key: null };
   try {
     return await callOllama({ messages, model, maxTokens, temperature, useCache, provider: ollamaProvider });

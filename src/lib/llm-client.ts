@@ -9,9 +9,15 @@
  */
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 
 const MODELS = {
+  groq: {
+    architect: "llama-3.3-70b-versatile",
+    worker: "llama-3.1-8b-instant",
+    healer: "llama-3.1-8b-instant",
+  },
   openrouter: {
     architect: "qwen/qwen-2.5-coder-32b-instruct",
     worker: "qwen/qwen-2.5-coder-32b-instruct",
@@ -46,10 +52,18 @@ interface LLMResponse {
   };
 }
 
-type Provider = { type: "openrouter"; url: string; key: string } | { type: "ollama"; url: string; key: null };
+type Provider =
+  | { type: "groq"; url: string; key: string }
+  | { type: "openrouter"; url: string; key: string }
+  | { type: "ollama"; url: string; key: null };
 
 function getProvider(): Provider {
+  const groqKey = process.env.GROQ_API_KEY;
   const openrouterKey = process.env.OPENROUTER_API_KEY;
+
+  if (groqKey && !groqKey.includes("REEMPLAZA") && !groqKey.includes("aqui")) {
+    return { type: "groq", url: GROQ_URL, key: groqKey };
+  }
 
   if (openrouterKey && !openrouterKey.includes("REEMPLAZA") && !openrouterKey.includes("aqui")) {
     return { type: "openrouter", url: OPENROUTER_URL, key: openrouterKey };
@@ -72,6 +86,9 @@ export async function callLLM({
   console.log(`[LLM] Provider: ${provider.type} | Model role: ${model}`);
 
   try {
+    if (provider.type === "groq") {
+      return await callGroq({ messages, model, maxTokens, temperature, provider });
+    }
     if (provider.type === "openrouter") {
       return await callOpenRouter({ messages, model, maxTokens, temperature, provider });
     }
@@ -119,6 +136,49 @@ async function callOpenRouter({
 
   if (!data.choices || data.choices.length === 0) {
     throw new Error("OpenRouter devolvió una respuesta vacía");
+  }
+
+  return {
+    content: data.choices[0].message.content,
+    model: data.model || modelId,
+    usage: data.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+  };
+}
+
+async function callGroq({
+  messages,
+  model = "architect",
+  maxTokens,
+  temperature,
+  provider,
+}: LLMOptions & { provider: Extract<Provider, { type: "groq" }> }): Promise<LLMResponse> {
+  const modelId = MODELS.groq[model] || MODELS.groq.architect;
+
+  const body = {
+    model: modelId,
+    messages,
+    max_tokens: maxTokens,
+    temperature,
+  };
+
+  const response = await fetch(provider.url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${provider.key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Groq HTTP ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  if (!data.choices || data.choices.length === 0) {
+    throw new Error("Groq devolvió una respuesta vacía");
   }
 
   return {
