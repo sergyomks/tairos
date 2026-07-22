@@ -147,12 +147,12 @@ export default function DashboardPage() {
 
   const displayTasks = dbData.tasks.length > 0 ? dbData.tasks.slice(0, 3).map(t => {
     const mapping = {
-      prp: { agent: "Architect (Claude 3.5)", icon: "🎨", task: "Generar propuesta de requisitos y arquitectura" },
-      database: { agent: "DbWorker (Qwen-Coder)", icon: "🗄️", task: "Configurar y estructurar tablas de base de datos" },
-      api: { agent: "ApiWorker (Qwen-Coder)", icon: "⚙️", task: "Desarrollar controladores y endpoints API" },
-      frontend: { agent: "UiWorker (DeepSeek-Coder)", icon: "💻", task: "Diseñar y compilar componentes de interfaz" },
-      qa: { agent: "QaWorker (Llama-3 Local)", icon: "🧪", task: "Generar y ejecutar pruebas automatizadas" },
-      deploy: { agent: "DeployWorker (Docker)", icon: "🚀", task: "Crear contenedor y realizar despliegue" },
+      prp: { agent: "Architect (Groq · Llama 3.3 70B)", icon: "🎨", task: "Generar propuesta de requisitos y arquitectura" },
+      database: { agent: "DbWorker (Groq · Llama 3.1 8B)", icon: "🗄️", task: "Diseñar esquemas SQL y políticas RLS" },
+      api: { agent: "ApiWorker (Groq · Llama 3.1 8B)", icon: "⚙️", task: "Generar endpoints API + typecheck real" },
+      frontend: { agent: "UiWorker (Groq · Llama 3.1 8B)", icon: "💻", task: "Generar componentes UI + build real" },
+      qa: { agent: "QaWorker (Groq · Llama 3.1 8B)", icon: "🧪", task: "Generar y ejecutar pruebas automatizadas" },
+      deploy: { agent: "DeployWorker (Build + Vercel)", icon: "🚀", task: "Build de producción y despliegue" },
     }[t.phase as "prp" | "database" | "api" | "frontend" | "qa" | "deploy"] || { agent: "Worker Agent", icon: "🤖", task: "Ejecutar tarea asignada" };
 
     const logsArray = Array.isArray(t.logs) ? t.logs : [];

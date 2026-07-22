@@ -241,22 +241,22 @@ export default function SettingsPage() {
                 {[
                   {
                     role: "Architect (Razonador)",
-                    model: "Claude 3.5 Sonnet",
-                    cost: "$3.00 / 1M tokens",
+                    model: "Groq · Llama 3.3 70B Versatile",
+                    cost: "$0.00 — Free Tier Groq",
                   },
                   {
-                    role: "Worker 1 (Codificador)",
-                    model: "Qwen-2.5-Coder",
-                    cost: "$0.20 / 1M tokens",
+                    role: "Worker (Codificador)",
+                    model: "Groq · Llama 3.1 8B Instant",
+                    cost: "$0.00 — Free Tier Groq",
                   },
                   {
-                    role: "Worker 2 (Codificador)",
-                    model: "DeepSeek-Coder-V2",
-                    cost: "$0.14 / 1M tokens",
+                    role: "Healer (Auto-reparación)",
+                    model: "Groq · Llama 3.1 8B Instant",
+                    cost: "$0.00 — Free Tier Groq",
                   },
                   {
-                    role: "Worker 3 (Local)",
-                    model: "Llama-3 (Ollama)",
+                    role: "Fallback (Local)",
+                    model: "Ollama · Qwen 2.5 Coder 7B",
                     cost: "$0.00 — Local",
                   },
                 ].map((agent) => (

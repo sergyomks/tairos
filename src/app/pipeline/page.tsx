@@ -74,12 +74,12 @@ export default function PipelinePage() {
 
   const displayTasks = tasks.length > 0 ? tasks.map(t => {
     const mapping = {
-      prp: { agent: "Architect (Claude 3.5)", icon: "🎨", task: "Generar propuesta de requisitos y arquitectura" },
-      database: { agent: "DbWorker (Qwen-Coder)", icon: "🗄️", task: "Configurar y estructurar tablas de base de datos" },
-      api: { agent: "ApiWorker (Qwen-Coder)", icon: "⚙️", task: "Desarrollar controladores y endpoints API" },
-      frontend: { agent: "UiWorker (DeepSeek-Coder)", icon: "💻", task: "Diseñar y compilar componentes de interfaz" },
-      qa: { agent: "QaWorker (Llama-3 Local)", icon: "🧪", task: "Generar y ejecutar pruebas automatizadas" },
-      deploy: { agent: "DeployWorker (Docker)", icon: "🚀", task: "Crear contenedor y realizar despliegue" },
+      prp: { agent: "Architect (Groq · Llama 3.3 70B)", icon: "🎨", task: "Generar propuesta de requisitos y arquitectura" },
+      database: { agent: "DbWorker (Groq · Llama 3.1 8B)", icon: "🗄️", task: "Diseñar esquemas SQL y políticas RLS" },
+      api: { agent: "ApiWorker (Groq · Llama 3.1 8B)", icon: "⚙️", task: "Generar endpoints API + typecheck real" },
+      frontend: { agent: "UiWorker (Groq · Llama 3.1 8B)", icon: "💻", task: "Generar componentes UI + build real" },
+      qa: { agent: "QaWorker (Groq · Llama 3.1 8B)", icon: "🧪", task: "Generar y ejecutar pruebas automatizadas" },
+      deploy: { agent: "DeployWorker (Build + Vercel)", icon: "🚀", task: "Build de producción y despliegue" },
     }[t.phase as "prp" | "database" | "api" | "frontend" | "qa" | "deploy"] || { agent: "Worker Agent", icon: "🤖", task: "Ejecutar tarea asignada" };
 
     const logsArray = Array.isArray(t.logs) ? t.logs : [];
@@ -101,7 +101,7 @@ export default function PipelinePage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-tairos-text">Pipeline A2A</h1>
         <p className="text-sm text-tairos-muted mt-1">
-          Orquestación Architect → Workers para el proyecto InvenTrack
+          Orquestación Architect → Workers · Modelos vía Groq (fallback: Ollama local)
         </p>
       </div>
 
@@ -112,8 +112,10 @@ export default function PipelinePage() {
         </h3>
         <div className="flex items-center justify-between">
           {PHASES.map((phase, i) => {
-            const isActive = phase.key === "frontend";
-            const isDone = ["prp", "database", "api"].includes(phase.key);
+            const phaseTasks = tasks.filter((t) => t.phase === phase.key);
+            const isDone = phaseTasks.length > 0 && phaseTasks.every((t) => t.status === "completed");
+            const isActive = phaseTasks.some((t) => t.status === "in_progress");
+            const isFailed = phaseTasks.some((t) => t.status === "failed");
             return (
               <div key={phase.key} className="flex items-center gap-3">
                 <div
@@ -180,7 +182,7 @@ export default function PipelinePage() {
               @tairos-architect
             </span>
             <span className="text-[10px] text-tairos-muted">
-              Claude 3.5 Sonnet
+              Groq · Llama 3.3 70B
             </span>
           </div>
 
