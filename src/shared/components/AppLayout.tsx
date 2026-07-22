@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "@/shared/components/Sidebar";
 import ThemeToggle from "@/shared/components/ThemeToggle";
-import { Bell } from "lucide-react";
+import Notifications from "@/shared/components/Notifications";
 import AuthGuard from "@/shared/components/AuthGuard";
 import { supabase } from "@/shared/supabase";
 
@@ -70,10 +70,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Top bar */}
           <header className="sticky top-0 z-30 flex items-center justify-end gap-4 px-8 py-4 bg-tairos-bg/60 backdrop-blur-xl border-b border-tairos-border">
             <ThemeToggle />
-            <button className="relative p-2 rounded-xl text-tairos-muted hover:text-tairos-text hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-tairos-red" />
-            </button>
+            <Notifications />
             <div className="flex items-center gap-2 pl-3 border-l border-tairos-border">
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
