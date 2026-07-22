@@ -50,7 +50,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [message, setMessage] = useState("");
   const [user, setUser] = useState<any>(null);
-  const [showPRP, setShowPRP] = useState(true);
+  const [showPRP, setShowPRP] = useState(false);
   const [activePRP, setActivePRP] = useState<any>(null);
   const [votes, setVotes] = useState<any[]>([]);
   const [isAgentTyping, setIsAgentTyping] = useState(false);
@@ -78,7 +78,9 @@ export default function ChatPage() {
     };
     fetchMessages();
 
-    // 3. Fetch active PRP
+    // 3. Fetch active PRP (solo pre-cargar datos, NO mostrar panel automáticamente)
+    // El panel solo se muestra cuando llega un PRP nuevo via realtime
+    // o cuando el usuario hace clic en "PRP Activo"
     const fetchActivePRP = async () => {
       const { data: prpData, error } = await supabase
         .from("prps")
@@ -87,7 +89,6 @@ export default function ChatPage() {
         .order("created_at", { ascending: false })
         .limit(1);
 
-      // Si hay error o no hay datos, no hacer nada
       if (error) {
         console.log("No hay PRPs activas o error:", error.message);
         return;
@@ -95,10 +96,9 @@ export default function ChatPage() {
 
       if (prpData && prpData.length > 0) {
         const prp = prpData[0];
+        // Solo pre-cargar datos. El panel NO se abre automáticamente al cargar.
         setActivePRP(prp);
-        setShowPRP(true);
 
-        // Fetch votes for this PRP
         const { data: votesData } = await supabase
           .from("prp_votes")
           .select("*")
@@ -108,7 +108,6 @@ export default function ChatPage() {
           setVotes(votesData);
         }
       } else {
-        // No hay PRP pendiente: ocultar panel
         setActivePRP(null);
         setVotes([]);
         setShowPRP(false);
@@ -294,6 +293,10 @@ export default function ChatPage() {
 
     if (!error) {
       setMessages([]);
+      // También ocultar el panel de votación
+      setShowPRP(false);
+      setActivePRP(null);
+      setVotes([]);
     } else {
       console.error("Error al limpiar chat:", error);
       alert("Error al limpiar el chat. Verifica los permisos en Supabase.");
@@ -339,6 +342,13 @@ export default function ChatPage() {
           .eq("id", activePRP.id);
         
         setActivePRP({ ...activePRP, status: "approved" });
+
+        // Auto-ocultar panel después de 5 segundos
+        setTimeout(() => {
+          setShowPRP(false);
+          setActivePRP(null);
+          setVotes([]);
+        }, 5000);
       }
     }
   };
