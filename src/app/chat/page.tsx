@@ -78,9 +78,9 @@ export default function ChatPage() {
     };
     fetchMessages();
 
-    // 3. Fetch active PRP (solo pre-cargar datos, NO mostrar panel automáticamente)
-    // El panel solo se muestra cuando llega un PRP nuevo via realtime
-    // o cuando el usuario hace clic en "PRP Activo"
+    // 3. Fetch active PRP — si hay un PRP pendiente, mostrar panel para TODOS
+    // Esto es crítico: cualquier usuario que abra el chat debe ver el panel
+    // de votación si hay un PRP esperando aprobación democrática (2/3).
     const fetchActivePRP = async () => {
       const { data: prpData, error } = await supabase
         .from("prps")
@@ -96,8 +96,8 @@ export default function ChatPage() {
 
       if (prpData && prpData.length > 0) {
         const prp = prpData[0];
-        // Solo pre-cargar datos. El panel NO se abre automáticamente al cargar.
         setActivePRP(prp);
+        setShowPRP(true); // Mostrar panel para TODOS los usuarios
 
         const { data: votesData } = await supabase
           .from("prp_votes")
@@ -554,11 +554,20 @@ export default function ChatPage() {
         {/* PRP Voting Panel */}
         {showPRP && activePRP && (
           <div className="w-96 flex-shrink-0 glass-card p-6 animate-slide-in overflow-y-auto">
-            <div className="flex items-center gap-2 mb-1">
-              <FileText className="w-4 h-4 text-tairos-amber" />
-              <span className="text-[10px] font-semibold text-tairos-amber uppercase tracking-wider">
-                Propuesta de Requisitos (PRP) — {activePRP.sprint || "Sprint Actual"}
-              </span>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-tairos-amber" />
+                <span className="text-[10px] font-semibold text-tairos-amber uppercase tracking-wider">
+                  Propuesta de Requisitos (PRP) — {activePRP.sprint || "Sprint Actual"}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowPRP(false)}
+                className="text-tairos-muted hover:text-tairos-text transition-colors"
+                title="Cerrar panel"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             <h3 className="text-lg font-bold text-tairos-text mt-3 mb-2">
