@@ -71,7 +71,7 @@ module.exports = nextConfig;
           "@/*": ["./src/*"],
         },
       },
-      include: ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+      include: ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
       exclude: ["node_modules"],
     },
     null,

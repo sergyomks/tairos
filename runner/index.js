@@ -10,6 +10,7 @@
  */
 
 const path = require("path");
+const fs = require("fs");
 require("dotenv").config({ path: path.resolve(__dirname, "../.env.local") });
 const { createClient } = require("@supabase/supabase-js");
 const { spawn } = require("child_process");
@@ -230,6 +231,18 @@ async function processTask(task) {
       }
     }
 
+    // Instalar dependencias si el proyecto existe pero no tiene node_modules
+    if (useRealCommands && !fs.existsSync(path.join(projectDir, "node_modules"))) {
+      await addLog("[Setup] Instalando dependencias (npm install)...");
+      const { exitCode, stderr } = await execCommand("npm install", projectDir, 180000);
+      if (exitCode !== 0) {
+        await addLog(`[Setup] ⚠️ npm install falló: ${(stderr || "").slice(0, 200)}`);
+        useRealCommands = false;
+      } else {
+        await addLog("[Setup] ✓ Dependencias instaladas.");
+      }
+    }
+
     // Ejecutar la fase correspondiente
     await executePhase(task, addLog, projectDir, useRealCommands, projectName);
 
@@ -306,7 +319,6 @@ async function processTask(task) {
  * Usa comandos reales si el proyecto existe, sino genera con IA.
  */
 async function executePhase(task, addLog, projectDir, useRealCommands, projectName) {
-  const fs = require("fs");
 
   switch (task.phase) {
     case "prp": {
