@@ -9,10 +9,11 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { callLLM } from "./llm-client";
 
 // Patrones de comandos
+// IMPORTANTE: "@tairos /new app ..." se detecta como "new-app", no como "mention"
 const COMMAND_PATTERNS = [
-  { pattern: /\/new[- ]?app\s+(.+)/i, type: "new-app" },
-  { pattern: /\/feature\s+(.+)/i, type: "feature" },
-  { pattern: /\/prp\s+(.+)/i, type: "prp" },
+  { pattern: /(?:@tairos\s*)?\/new[- ]?app\s+(.+)/i, type: "new-app" },
+  { pattern: /(?:@tairos\s*)?\/feature\s+(.+)/i, type: "feature" },
+  { pattern: /(?:@tairos\s*)?\/prp\s+(.+)/i, type: "prp" },
   { pattern: /@tairos\b/i, type: "mention" },
 ];
 

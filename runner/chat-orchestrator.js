@@ -16,10 +16,12 @@ const {
 } = require("./cost-optimizer");
 
 // Patrones de comandos que activan al Architect
+// IMPORTANTE: el orden importa. Comandos específicos van ANTES de @tairos genérico.
+// Además, aceptamos "@tairos /new app ..." como equivalente a "/new-app ..."
 const COMMAND_PATTERNS = [
-  { pattern: /\/new[- ]?app\s+(.+)/i, type: "new-app" },
-  { pattern: /\/feature\s+(.+)/i, type: "feature" },
-  { pattern: /\/prp\s+(.+)/i, type: "prp" },
+  { pattern: /(?:@tairos\s*)?\/new[- ]?app\s+(.+)/i, type: "new-app" },
+  { pattern: /(?:@tairos\s*)?\/feature\s+(.+)/i, type: "feature" },
+  { pattern: /(?:@tairos\s*)?\/prp\s+(.+)/i, type: "prp" },
   { pattern: /@tairos\b/i, type: "mention" },
 ];
 

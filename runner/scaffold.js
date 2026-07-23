@@ -7,6 +7,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
 
 const WORKSPACE_DIR = path.resolve(__dirname, "../workspace");
 
@@ -159,6 +160,12 @@ export function createClient() {
   "src/lib/supabase/server.ts": () => `import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+interface CookieToSet {
+  name: string;
+  value: string;
+  options?: Record<string, unknown>;
+}
+
 export async function createClient() {
   const cookieStore = await cookies();
 
@@ -170,7 +177,7 @@ export async function createClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookieToSet[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
@@ -212,6 +219,36 @@ src/features/
 1. \`npm install\`
 2. Copiar \`.env.local.example\` a \`.env.local\` y completar credenciales de Supabase
 3. \`npm run dev\`
+`,
+
+  ".gitignore": () => `# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# next.js
+.next/
+out/
+
+# production
+build/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+
+# local env files
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
 `,
 
   ".env.local.example": () => `NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
@@ -271,6 +308,26 @@ async function createScaffold(projectName, description = "") {
 
     fs.writeFileSync(fullPath, contentFn(context), "utf-8");
     console.log(`[Scaffold] ✓ ${relativePath}`);
+  }
+
+  // Inicializar git repo con commit inicial
+  try {
+    execSync("git init", { cwd: projectDir, stdio: "ignore" });
+    execSync("git add -A", { cwd: projectDir, stdio: "ignore" });
+    execSync('git commit -m "feat: initial scaffold by Tairos OS"', {
+      cwd: projectDir,
+      stdio: "ignore",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "Tairos OS",
+        GIT_AUTHOR_EMAIL: "tairos@localhost",
+        GIT_COMMITTER_NAME: "Tairos OS",
+        GIT_COMMITTER_EMAIL: "tairos@localhost",
+      },
+    });
+    console.log("[Scaffold] ✓ Repositorio git inicializado con commit inicial.");
+  } catch (gitErr) {
+    console.warn(`[Scaffold] ⚠️ No se pudo inicializar git: ${gitErr.message}`);
   }
 
   console.log(`[Scaffold] ✓ Scaffold completado en ${projectDir}`);

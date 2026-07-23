@@ -20,37 +20,45 @@ const supabase = createClient(
 import { handleChatMessage } from "@/lib/chat-handler";
 
 export async function POST(request: NextRequest) {
-  try {
-    // Leer el payload del webhook
-    const payload = await request.json();
+  // =====================================================================
+  // DESACTIVADO: El Runner Local (npm run dev:runner) es el único que
+  // procesa mensajes del chat. Este webhook causaba procesamiento doble
+  // y no tiene las API keys necesarias (GROQ_API_KEY, etc.).
+  //
+  // Si en el futuro quieres procesar mensajes desde Vercel (sin runner),
+  // descomenta el bloque de abajo y configura las env vars en Vercel.
+  // =====================================================================
 
+  return NextResponse.json({
+    success: true,
+    skipped: true,
+    reason: "Chat processing delegated to local runner (npm run dev:runner)",
+  });
+
+  /*
+  try {
+    const payload = await request.json();
     console.log("[Webhook] Mensaje recibido:", payload);
 
-    // Verificar que es un INSERT en chat_messages
     if (payload.type !== "INSERT" || payload.table !== "chat_messages") {
       return NextResponse.json({ error: "Invalid webhook type" }, { status: 400 });
     }
 
     const message = payload.record;
 
-    // Ignorar mensajes del bot
     if (!message.sender_id || message.sender_name === "@tairos-architect") {
       return NextResponse.json({ success: true, skipped: true });
     }
 
-    // Procesar el mensaje
     await handleChatMessage(supabase, message);
-
     return NextResponse.json({ success: true });
 
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[Webhook] Error:", error);
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
+  */
 }
 
 export const maxDuration = 60;

@@ -262,18 +262,40 @@ async function applyPatch(projectDir, { file, oldCode, newCode }) {
  * Inserta un evento en la tabla healing_events.
  */
 async function insertHealingEvent(supabase, { project_id, event_type, title, detail, agent, old_code, new_code }) {
-  const { error } = await supabase.from("healing_events").insert({
-    project_id: project_id || null,
-    event_type,
-    title,
-    detail: detail || null,
-    agent: agent || null,
-    old_code: old_code || null,
-    new_code: new_code || null,
-  });
+  try {
+    const payload = {
+      project_id: project_id || null,
+      event_type,
+      title,
+      detail: detail || null,
+      agent: agent || null,
+    };
 
-  if (error) {
-    console.error(`[Self-Healing] Error al registrar evento ${event_type}:`, error.message);
+    // old_code y new_code son opcionales (puede que la tabla no tenga esas columnas)
+    if (old_code) payload.old_code = old_code;
+    if (new_code) payload.new_code = new_code;
+
+    const { error } = await supabase.from("healing_events").insert(payload);
+
+    if (error) {
+      // Si falla por columnas faltantes, reintentar sin old_code/new_code
+      if (error.message.includes("column") || error.code === "42703") {
+        const { error: retryError } = await supabase.from("healing_events").insert({
+          project_id: project_id || null,
+          event_type,
+          title,
+          detail: `${detail || ""}\n\n--- Parche ---\nOLD: ${(old_code || "").slice(0, 200)}\nNEW: ${(new_code || "").slice(0, 200)}`,
+          agent: agent || null,
+        });
+        if (retryError) {
+          console.error(`[Self-Healing] Error al registrar evento (retry):`, retryError.message);
+        }
+      } else {
+        console.error(`[Self-Healing] Error al registrar evento ${event_type}:`, error.message);
+      }
+    }
+  } catch (err) {
+    console.error(`[Self-Healing] Excepción al registrar evento:`, err.message);
   }
 }
 
