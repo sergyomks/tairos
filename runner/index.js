@@ -186,6 +186,66 @@ function execCommand(cmd, cwd = process.cwd(), timeoutMs = 120000) {
 }
 
 // ============================================
+// UTILIDADES: Extraer código limpio de respuestas LLM
+// ============================================
+
+/**
+ * Extrae código válido de la respuesta del LLM.
+ * Los modelos pequeños a veces responden con texto antes/después del código.
+ * Esta función extrae SOLO el código, eliminando explicaciones.
+ */
+function extractCode(rawResponse, language = "typescript") {
+  if (!rawResponse || typeof rawResponse !== "string") return "";
+
+  // 1. Si hay un bloque ```...``` , extraer su contenido
+  const fenceRegex = /```(?:tsx?|typescript|javascript|jsx?)?\s*\n([\s\S]*?)```/;
+  const fenceMatch = rawResponse.match(fenceRegex);
+  if (fenceMatch) {
+    return fenceMatch[1].trim();
+  }
+
+  // 2. Si la primera línea NO es código válido (empieza con letra minúscula, español),
+  //    buscar la primera línea que parezca código
+  const lines = rawResponse.split("\n");
+  let codeStartIdx = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    // Línea vacía, skip
+    if (!line) continue;
+    // Líneas que parecen código TypeScript/JSX
+    if (
+      line.startsWith("import ") ||
+      line.startsWith("export ") ||
+      line.startsWith("\"use client\"") ||
+      line.startsWith("'use client'") ||
+      line.startsWith("const ") ||
+      line.startsWith("function ") ||
+      line.startsWith("interface ") ||
+      line.startsWith("type ") ||
+      line.startsWith("//") ||
+      line.startsWith("/*")
+    ) {
+      codeStartIdx = i;
+      break;
+    }
+    // Si la línea empieza con letra minúscula o acentos (texto en español), es explicación
+    if (/^[a-záéíóúñ¿¡]/i.test(line) && !line.includes("import") && !line.includes("export")) {
+      continue;
+    }
+    // Cualquier otra cosa, asumir que es código
+    codeStartIdx = i;
+    break;
+  }
+
+  // Cortar las líneas de explicación del inicio
+  const cleaned = lines.slice(codeStartIdx).join("\n").trim();
+
+  // 3. Remover fences sueltas que quedaron
+  return cleaned.replace(/^```\w*\n?/gm, "").replace(/\n?```$/gm, "").trim();
+}
+
+// ============================================
 // 3. PROCESAMIENTO DE TAREAS DEL PIPELINE A2A
 // ============================================
 
@@ -465,23 +525,26 @@ async function executePhase(task, addLog, projectDir, useRealCommands, projectNa
         messages: [
           {
             role: "system",
-            content: `Genera un archivo de API route para Next.js App Router en TypeScript.
-El archivo debe exportar funciones GET y POST.
-Usa este formato exacto:
-\`\`\`typescript
-import { NextRequest, NextResponse } from "next/server";
-export async function GET(request: NextRequest) { ... }
-export async function POST(request: NextRequest) { ... }
-\`\`\`
-Solo código TypeScript, sin explicaciones.`,
+            content: `SOLO responde con código TypeScript. No escribas explicaciones, ni texto antes ni después del código.
+
+Genera un archivo de API route para Next.js 16 App Router.
+REGLAS ESTRICTAS:
+- Solo importa de "next/server" y "@supabase/supabase-js". NO importes módulos que no existen.
+- NO uses import de "db", "@remix-run", "react-query", "prisma" ni ningún módulo externo.
+- Exporta funciones GET y POST.
+- Usa request.json() para leer el body (NO request.body directamente).
+- Responde SOLO con el código. La primera línea DEBE ser un import.`,
           },
           {
             role: "user",
-            content: `Genera el endpoint principal del API para el proyecto ${task.project_id}.${apiPrpContext}`,
+            content: `import { NextRequest, NextResponse } from "next/server";
+
+// Completa este archivo de API route con GET y POST para: ${apiPrpContext || task.project_id}`,
           },
         ],
         model: "worker",
         maxTokens: 1024,
+        temperature: 0.2,
       });
 
       // Guardar API route en el proyecto
@@ -490,9 +553,12 @@ Solo código TypeScript, sin explicaciones.`,
         if (!fs.existsSync(apiDir)) {
           fs.mkdirSync(apiDir, { recursive: true });
         }
-        // Limpiar markdown fences si el LLM las incluyó
-        const cleanCode = apiCode.replace(/^```\w*\n?/gm, "").replace(/```$/gm, "").trim();
-        fs.writeFileSync(path.join(apiDir, "route.ts"), cleanCode, "utf-8");
+        const cleanCode = extractCode(apiCode);
+        // Asegurar que empiece con el import correcto
+        const finalCode = cleanCode.startsWith("import")
+          ? cleanCode
+          : `import { NextRequest, NextResponse } from "next/server";\n\n${cleanCode}`;
+        fs.writeFileSync(path.join(apiDir, "route.ts"), finalCode, "utf-8");
         await addLog("[ApiWorker] ✓ API route guardado en src/app/api/data/route.ts");
       }
 
@@ -529,24 +595,26 @@ Solo código TypeScript, sin explicaciones.`,
         messages: [
           {
             role: "system",
-            content: `Genera una página principal para Next.js App Router con React y Tailwind CSS.
-El archivo debe ser un componente por defecto que se exporte.
-Usa "use client" si necesitas hooks de React.
-Usa diseño moderno con Tailwind. Solo código TSX, sin explicaciones.
-Ejemplo de formato:
-\`\`\`tsx
-export default function DashboardPage() {
-  return <main className="min-h-screen p-8">...</main>;
-}
-\`\`\``,
+            content: `SOLO responde con código TSX. No escribas explicaciones, ni texto antes ni después del código.
+
+Genera una página para Next.js 16 App Router con React 19 y Tailwind CSS.
+REGLAS ESTRICTAS:
+- La primera línea DEBE ser "export default function" o "'use client'".
+- NO importes de "@remix-run", "react-query", "styled-components" ni módulos externos.
+- Solo puedes importar de "react" y "next/link" o "next/image".
+- Usa className con Tailwind CSS para estilizar.
+- Exporta el componente como default.`,
           },
           {
             role: "user",
-            content: `Genera la página principal (dashboard) para el proyecto ${task.project_id}.${uiPrpContext}`,
+            content: `export default function DashboardPage() {
+  // Genera un dashboard moderno con Tailwind CSS para: ${uiPrpContext || task.project_id}
+  return (`,
           },
         ],
         model: "worker",
         maxTokens: 1536,
+        temperature: 0.3,
       });
 
       // Guardar página en el proyecto
@@ -555,7 +623,11 @@ export default function DashboardPage() {
         if (!fs.existsSync(dashDir)) {
           fs.mkdirSync(dashDir, { recursive: true });
         }
-        const cleanPage = pageCode.replace(/^```\w*\n?/gm, "").replace(/```$/gm, "").trim();
+        let cleanPage = extractCode(pageCode);
+        // Si el LLM continuó desde nuestro prompt parcial, reconstruir la función completa
+        if (!cleanPage.includes("export default function")) {
+          cleanPage = `export default function DashboardPage() {\n  return (\n${cleanPage}\n  );\n}`;
+        }
         fs.writeFileSync(path.join(dashDir, "page.tsx"), cleanPage, "utf-8");
         await addLog("[UiWorker] ✓ Dashboard page guardado en src/app/dashboard/page.tsx");
       }

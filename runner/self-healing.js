@@ -219,7 +219,20 @@ Responde en español.`,
  * @returns {Promise<boolean>} - true si se aplicó exitosamente
  */
 async function applyPatch(projectDir, { file, oldCode, newCode }) {
-  const filePath = path.join(projectDir, file);
+  // Normalizar la ruta del archivo:
+  // - Si el LLM devuelve path absoluto, extraer solo la parte relativa
+  // - Si ya es relativo, usarlo directo
+  let relativePath = file;
+  if (path.isAbsolute(file)) {
+    // Intentar extraer ruta relativa al projectDir
+    if (file.includes(projectDir)) {
+      relativePath = file.replace(projectDir, "").replace(/^\//, "");
+    } else {
+      // Si es un path absoluto que no contiene projectDir, usar solo el basename
+      relativePath = path.relative("/", file);
+    }
+  }
+  const filePath = path.join(projectDir, relativePath);
 
   // Verificar que el archivo existe
   if (!fs.existsSync(filePath)) {
@@ -308,9 +321,14 @@ function parsePatchResponse(response) {
   }
 
   try {
-    // Extraer archivo
+    // Extraer archivo y limpiar la ruta
     const fileMatch = response.match(/ARCHIVO:\s*(.+)/);
-    const file = fileMatch ? fileMatch[1].trim() : null;
+    let file = fileMatch ? fileMatch[1].trim() : null;
+
+    // Limpiar backticks o comillas que el LLM pudo agregar
+    if (file) {
+      file = file.replace(/[`"']/g, "").trim();
+    }
 
     if (!file) {
       console.error("[Self-Healing] No se pudo extraer el nombre del archivo del parche.");
